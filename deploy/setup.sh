@@ -42,10 +42,10 @@ echo "[1/9] Instalando dependencias del sistema..."
 apt-get update -qq
 apt-get install -y -qq curl git nginx certbot python3-certbot-nginx ufw mariadb-server
 
-# 2. Node.js 20
+# 2. Node.js 22
 echo ""
-echo "[2/9] Instalando Node.js 20..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+echo "[2/9] Instalando Node.js 22..."
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y -qq nodejs
 
 # 3. pnpm + PM2
