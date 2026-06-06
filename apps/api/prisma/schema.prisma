@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ADMINS ──────────────────────────────────────────────────────────────────
+
+model Admin {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @db.VarChar(255)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  auditLogs    AuditLog[]
+
+  @@map("admins")
+}
+
+// ─── SERVERS ─────────────────────────────────────────────────────────────────
+
+model Server {
+  id               Int              @id @default(autoincrement())
+  name             String           @db.VarChar(100)
+  slug             String           @unique @db.VarChar(120)
+  host             String           @db.VarChar(255)
+  port             Int
+  type             String           @db.VarChar(10)
+  status           String           @default("UNKNOWN") @db.VarChar(10)
+
+  motd             String?          @db.Text
+  version          String?          @db.VarChar(50)
+  faviconHash      String?          @map("favicon_hash") @db.VarChar(64)
+  faviconData      String?          @map("favicon_data") @db.LongText
+  playersOnline    Int              @default(0) @map("players_online")
+  playersMax       Int              @default(0) @map("players_max")
+  peakPlayers      Int              @default(0) @map("peak_players")
+  latencyMs        Int?             @map("latency_ms")
+  uptimePercentage Decimal          @default(0) @map("uptime_percentage") @db.Decimal(6, 3)
+
+  country          String?          @db.VarChar(2)
+  websiteUrl       String?          @map("website_url") @db.VarChar(512)
+  discordUrl       String?          @map("discord_url") @db.VarChar(512)
+
+  approvedAt       DateTime?        @map("approved_at")
+  lastCheckedAt    DateTime?        @map("last_checked_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  snapshots        ServerSnapshot[]
+  dailyStats       ServerDailyStats[]
+
+  @@unique([host, port, type], name: "host_port_type_unique")
+  @@index([status])
+  @@index([type])
+  @@index([playersOnline], map: "idx_players_online")
+  @@index([slug])
+  @@map("servers")
+}
+
+// ─── SUBMISSIONS ─────────────────────────────────────────────────────────────
+
+model ServerSubmission {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(100)
+  host            String    @db.VarChar(255)
+  port            Int
+  type            String    @db.VarChar(10)
+  websiteUrl      String?   @map("website_url") @db.VarChar(512)
+  discordUrl      String?   @map("discord_url") @db.VarChar(512)
+  contactEmail    String?   @map("contact_email") @db.VarChar(255)
+  status          String    @default("PENDING") @db.VarChar(10)
+  submitterIpHash String    @map("submitter_ip_hash") @db.VarChar(64)
+  lastPingError   String?   @map("last_ping_error") @db.Text
+  notes           String?   @db.Text
+  reviewedById    Int?      @map("reviewed_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("server_submissions")
+}
+
+// ─── SNAPSHOTS ───────────────────────────────────────────────────────────────
+
+model ServerSnapshot {
+  id            Int      @id @default(autoincrement())
+  serverId      Int      @map("server_id")
+  checkedAt     DateTime @default(now()) @map("checked_at")
+  online        Boolean
+  playersOnline Int      @default(0) @map("players_online")
+  playersMax    Int      @default(0) @map("players_max")
+  version       String?  @db.VarChar(50)
+  latencyMs     Int?     @map("latency_ms")
+  motdHash      String?  @map("motd_hash") @db.VarChar(64)
+  errorMessage  String?  @map("error_message") @db.Text
+
+  server        Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, checkedAt])
+  @@index([checkedAt])
+  @@map("server_snapshots")
+}
+
+// ─── DAILY STATS ─────────────────────────────────────────────────────────────
+
+model ServerDailyStats {
+  id               Int      @id @default(autoincrement())
+  serverId         Int      @map("server_id")
+  date             DateTime @db.Date
+  avgPlayers       Decimal  @default(0) @map("avg_players") @db.Decimal(8, 2)
+  maxPlayers       Int      @default(0) @map("max_players")
+  minPlayers       Int      @default(0) @map("min_players")
+  uptimePercentage Decimal  @default(0) @map("uptime_percentage") @db.Decimal(6, 3)
+  checksCount      Int      @default(0) @map("checks_count")
+  onlineChecks     Int      @default(0) @map("online_checks")
+
+  server           Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, date])
+  @@index([serverId])
+  @@index([date])
+  @@map("server_daily_stats")
+}
+
+// ─── AUDIT LOGS ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  adminId      Int      @map("admin_id")
+  action       String   @db.VarChar(50)
+  entityType   String   @map("entity_type") @db.VarChar(50)
+  entityId     Int      @map("entity_id")
+  metadataJson String?  @map("metadata_json") @db.Text
+  ip           String   @db.VarChar(45)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  admin        Admin    @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

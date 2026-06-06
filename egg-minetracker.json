@@ -1,0 +1,142 @@
+{
+  "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-06-06T00:00:00+00:00",
+  "name": "MineTracker",
+  "author": "imdani163@gmail.com",
+  "description": "MineTracker — Real-time Minecraft server tracker. Runs the NestJS API and Next.js frontend in the same container. SQLite included, Redis optional.",
+  "features": null,
+  "docker_images": {
+    "Node.js 20": "ghcr.io/parkervcp/yolks:nodejs_20"
+  },
+  "file_denylist": [],
+  "startup": "bash start.sh",
+  "config": {
+    "files": "{}",
+    "startup": "{\"done\": \"MineTracker API running on port\"}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\ncd /mnt/server\n\necho \"[1/8] Installing pnpm...\"\nnpm install -g pnpm@11 --quiet\n\necho \"[2/8] Creating data directory...\"\nmkdir -p data\n\necho \"[3/8] Installing dependencies...\"\npnpm install\n\necho \"[4/8] Writing environment config...\"\ncat > apps/api/.env << ENVEOF\nDATABASE_URL=\"file:/home/container/data/db.sqlite\"\nREDIS_URL=\"${REDIS_URL}\"\nJWT_SECRET=\"${JWT_SECRET}\"\nJWT_EXPIRES_IN=\"8h\"\nADMIN_EMAIL=\"${ADMIN_EMAIL}\"\nADMIN_PASSWORD=\"${ADMIN_PASSWORD}\"\nNODE_ENV=\"production\"\nAPI_PORT=${API_PORT}\nCORS_ORIGINS=\"${APP_URL}\"\nAPP_URL=\"${APP_URL}\"\nAPI_URL=\"http://localhost:${API_PORT}\"\nNEXT_PUBLIC_API_URL=\"http://localhost:${API_PORT}\"\nNEXT_PUBLIC_SITE_URL=\"${APP_URL}\"\nENABLE_SERVER_SUBMISSIONS=${ENABLE_SERVER_SUBMISSIONS}\nSUBMISSION_RATE_LIMIT_PER_HOUR=5\nREQUIRE_ADMIN_APPROVAL=true\nPING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS}\nPING_CONCURRENCY=${PING_CONCURRENCY}\nPING_TIMEOUT_MS=5000\nIP_HASH_SALT=\"${IP_HASH_SALT}\"\nENVEOF\n\necho \"[5/8] Generating Prisma client...\"\nDATABASE_URL=\"file:/home/container/data/db.sqlite\" pnpm --filter @minetracker/api exec prisma generate\n\necho \"[6/8] Running database migrations...\"\nDATABASE_URL=\"file:/home/container/data/db.sqlite\" pnpm --filter @minetracker/api exec prisma migrate deploy\n\necho \"[7/8] Seeding admin user...\"\nADMIN_EMAIL=\"${ADMIN_EMAIL}\" ADMIN_PASSWORD=\"${ADMIN_PASSWORD}\" DATABASE_URL=\"file:/home/container/data/db.sqlite\" pnpm --filter @minetracker/api exec prisma db seed\n\necho \"[8/8] Building apps...\"\npnpm --filter @minetracker/shared build\npnpm --filter @minetracker/api build\nNEXT_PUBLIC_API_URL=\"http://localhost:${API_PORT}\" NEXT_PUBLIC_SITE_URL=\"${APP_URL}\" pnpm --filter @minetracker/web build\n\ncat > /mnt/server/start.sh << 'STARTEOF'\n#!/bin/bash\ncd /home/container\n\nset -a\nsource apps/api/.env\nset +a\n\necho \"==> Starting MineTracker API on port $API_PORT...\"\nnode apps/api/dist/main.js &\nAPI_PID=$!\n\necho \"==> Starting MineTracker Web on port $WEB_PORT...\"\ncd apps/web && PORT=$WEB_PORT node_modules/.bin/next start -p $WEB_PORT &\nWEB_PID=$!\n\necho \"==> MineTracker running | API: $API_PORT | Web: $WEB_PORT\"\nwait $API_PID $WEB_PID\nSTARTEOF\n\nchmod +x /mnt/server/start.sh\necho \"Installation complete!\"",
+      "container": "ghcr.io/parkervcp/yolks:nodejs_20",
+      "entrypoint": "bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Web Port",
+      "description": "Puerto del frontend Next.js. Debe coincidir con la asignación de puertos del servidor.",
+      "env_variable": "WEB_PORT",
+      "default_value": "3000",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:1024,65535",
+      "field_type": "text"
+    },
+    {
+      "name": "API Port",
+      "description": "Puerto interno de la API NestJS. No necesita ser público si usas el proxy de Next.js.",
+      "env_variable": "API_PORT",
+      "default_value": "3001",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:1024,65535",
+      "field_type": "text"
+    },
+    {
+      "name": "App URL",
+      "description": "URL pública del sitio web. Ej: https://tracker.tudominio.com",
+      "env_variable": "APP_URL",
+      "default_value": "http://localhost:3000",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "JWT Secret",
+      "description": "Clave secreta para firmar tokens JWT. Usa al menos 64 caracteres aleatorios.",
+      "env_variable": "JWT_SECRET",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|min:32",
+      "field_type": "text"
+    },
+    {
+      "name": "IP Hash Salt",
+      "description": "Salt para hashear las IPs de los usuarios. Usa al menos 32 caracteres aleatorios.",
+      "env_variable": "IP_HASH_SALT",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|min:16",
+      "field_type": "text"
+    },
+    {
+      "name": "Admin Email",
+      "description": "Email del administrador creado al instalar.",
+      "env_variable": "ADMIN_EMAIL",
+      "default_value": "admin@minetracker.local",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|email",
+      "field_type": "text"
+    },
+    {
+      "name": "Admin Password",
+      "description": "Contraseña del administrador creado al instalar.",
+      "env_variable": "ADMIN_PASSWORD",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|min:8",
+      "field_type": "text"
+    },
+    {
+      "name": "Redis URL",
+      "description": "URL de Redis para BullMQ y caché. Deja vacío para usar el modo sin Redis (cola en memoria).",
+      "env_variable": "REDIS_URL",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Ping Interval (segundos)",
+      "description": "Cada cuántos segundos se comprueba el estado de cada servidor Minecraft.",
+      "env_variable": "PING_INTERVAL_SECONDS",
+      "default_value": "60",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:30,3600",
+      "field_type": "text"
+    },
+    {
+      "name": "Ping Concurrency",
+      "description": "Número de pings simultáneos al monitorear servidores. Aumentar con Redis activado.",
+      "env_variable": "PING_CONCURRENCY",
+      "default_value": "5",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|numeric|between:1,50",
+      "field_type": "text"
+    },
+    {
+      "name": "Habilitar Submissions",
+      "description": "Permite que usuarios envíen nuevos servidores para revisión.",
+      "env_variable": "ENABLE_SERVER_SUBMISSIONS",
+      "default_value": "true",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|in:true,false",
+      "field_type": "text"
+    }
+  ]
+}
