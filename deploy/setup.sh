@@ -45,13 +45,28 @@ apt-get install -y -qq curl git nginx certbot python3-certbot-nginx ufw mariadb-
 # 2. Node.js 22
 echo ""
 echo "[2/9] Instalando Node.js 22..."
+# Eliminar versión anterior para forzar actualización
+apt-get remove -y nodejs nodejs-doc 2>/dev/null || true
+apt-get autoremove -y 2>/dev/null || true
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt-get install -y -qq nodejs
+apt-get install -y nodejs
+hash -r  # Flush bash PATH cache so new node binary is found
+node --version
+NODE_MAJOR=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "ERROR: Se requiere Node.js 22+ pero se encontró $(node --version). Revisa la instalación."
+  exit 1
+fi
 
 # 3. pnpm + PM2
 echo ""
 echo "[3/9] Instalando pnpm y PM2..."
+# Eliminar pnpm del sistema por todas las rutas posibles
+apt-get remove -y pnpm 2>/dev/null || true
+rm -f /usr/bin/pnpm /usr/local/bin/pnpm /usr/sbin/pnpm
 npm install -g pnpm@11 pm2 --quiet
+hash -r  # Flush bash PATH cache so new pnpm binary is found
+pnpm --version
 
 # 4. Firewall básico
 echo ""
